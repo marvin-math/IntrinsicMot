@@ -1,39 +1,35 @@
 import gym
+import numpy as np
 import statistics
+import q_learning_agent
 import envs.environment
+
+# functions
+
+q_agent = q_learning_agent.QLearningAgent()
+
+# end of functions
 
 env = gym.make('MDPAlireza-v0')
 
 # Number of episodes for the agent to run
-num_episodes = 100
-list_of_steps = []
 
-for episode in range(num_episodes):
-    # Reset the environment for each episode
-    observation, info = env.reset()
-    terminated = False
-    step_count = 0
-    total_reward = 0
+# parameters needed by our policy and learning rule
+params = {
+  'epsilon': 0.1,  # epsilon-greedy policy
+  'alpha': 0.1,  # learning rate
+  'gamma': 0.5,  # discount factor
+}
 
-    print(f"Episode {episode + 1} started:")
+# episodes/trials
+n_episodes = 100
+max_steps = 200000
 
-    # Run the environment until termination or max steps
-    while not terminated and step_count < 300000:  # Use max steps as an arbitrary upper limit
-        action = env.action_space.sample()  # Randomly select an action from the action space
+results = q_agent.learn_environment(env,q_agent.q_learning, params, max_steps, n_episodes)
+value_qlearning, reward_sums_qlearning, steps = results
 
-        # Take a step in the environment
-        observation, reward, terminated, truncated, info = env.step(action)
+print(steps)
+print(value_qlearning)
 
-        total_reward += reward
-        step_count += 1
 
-        # Display the current step details
-        #print(
-        #    f"Step {step_count} - Action: {action}, Observation: {observation}, Reward: {reward}, Terminated: {terminated}")
 
-    print(f"Episode {episode + 1} ended after {step_count} steps with total reward: {total_reward}\n")
-    list_of_steps.append(step_count)
-
-# Close the environment after use
-env.close()
-print("Average number of steps: ", statistics.mean(list_of_steps))
