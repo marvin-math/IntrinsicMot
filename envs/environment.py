@@ -11,17 +11,19 @@ class MDPAlireza(gym.Env):
         self.size = size  # The size of the square grid
         self.window_size = 512  # The size of the PyGame window
 
-        # Observations are dictionaries with the agent's and the target's location.
+        # Observations are dictionaries with the envs's and the target's location.
         # Each location is encoded as an element of {0, ..., `size`}^2, i.e. MultiDiscrete([size, size]).
         self.observation_space = spaces.Dict(
             {
-                "agent": spaces.Box(0, size - 1, shape=(1,), dtype=int),
+                "envs": spaces.Box(0, size - 1, shape=(1,), dtype=int),
                 "target": spaces.Box(0, size - 1, shape=(1,), dtype=int),
             }
         )
 
         # We have 4 actions, corresponding to "right", "up", "left", "down"
         self.action_space = spaces.Discrete(4)
+        self.progress_states = [0, 1, 2, 3, 4, 5, 6]
+        self.trap_states = [7, 8, 9]
 
         """
         The following dictionary maps abstract actions from `self.action_space` to
@@ -79,7 +81,7 @@ class MDPAlireza(gym.Env):
 
 
         # also have to implement shuffle logic
-        # three actions make agent stay or go to other trap state, one action to state 1
+        # three actions make envs stay or go to other trap state, one action to state 1
         available_actions_trap = [np.array([0, 0]), np.array([0, -1]), np.array([-1, 0]), np.array([0, 1])]
 
         self._action_to_direction_trap = {
@@ -122,7 +124,7 @@ class MDPAlireza(gym.Env):
         self.clock = None
 
     def _get_obs(self):
-        return {"agent": self._agent_location, "target": self._target_location}
+        return {"envs": self._agent_location, "target": self._target_location}
 
     def _get_info(self):
         return {
@@ -133,11 +135,13 @@ class MDPAlireza(gym.Env):
 
     def reset(self, seed=None, options=None):
 
-        # Choose the agent's location
+        # Choose the envs's location
         self._agent_location = np.array([1, 0])
 
         # target location
         self._target_location = np.array([1, 10])
+        np.random.shuffle(self.progress_states)
+        np.random.shuffle(self.trap_states)
 
         observation = self._get_obs()
         info = self._get_info()
@@ -149,54 +153,51 @@ class MDPAlireza(gym.Env):
 
 
     def step(self, action):
-        # the following first checks whether the agent is currently in a progressing state or trap state
+        # the following first checks whether the envs is currently in a progressing state or trap state
         # it then checks the action and depending on which action is taken from where it determines the next state
-        # IMPORTANT: is self._agent_location up to date? Is it the state that the agent is in before taking this action?
+        # IMPORTANT: is self._agent_location up to date? Is it the state that the envs is in before taking this action?
         agent_absolute = False
-        progress_states = [0, 1, 2, 3, 4, 5, 6]
-        trap_states = [7, 8, 9]
         state_key = f"state_{self._agent_location[1]}"
         progress = True
-        if self._agent_location[1] in progress_states:
-            np.random.shuffle(progress_states)
-            np.random.shuffle(trap_states)
-            if np.equal(self._action_to_direction[state_key][action], np.array([-1, 0])):
+        if self._agent_location[1] in self.progress_states:
+
+            if np.array_equal(self._action_to_direction[state_key][action], np.array([-1, 0])):
                 # bad action - transported to trap state
                 # To Do: use direction variable; check boundaries
                 agent_absolute = True
-                # randomize which trap state an agent is transported to from which progressing state upon taking bad action
-                if self._agent_location[1] in (progress_states[0], progress_states[1]):
-                    self._agent_location = np.array([1, trap_states[0]])
-                elif self._agent_location[1] in (progress_states[2], progress_states[3]):
-                    self._agent_location = np.array([1, trap_states[1]])
-                elif self._agent_location[1] in (progress_states[4], progress_states[5], progress_states[6]):
-                    self._agent_location = np.array([1, trap_states[2]])
-            elif np.equal(self._action_to_direction[state_key][action], np.array([0, 0])):
+                # randomize which trap state an envs is transported to from which progressing state upon taking bad action
+                if self._agent_location[1] in (self.progress_states[0], self.progress_states[1]):
+                    self._agent_location = np.array([1, self.trap_states[0]])
+                elif self._agent_location[1] in (self.progress_states[2], self.progress_states[3]):
+                    self._agent_location = np.array([1, self.trap_states[1]])
+                elif self._agent_location[1] in (self.progress_states[4], self.progress_states[5], self.progress_states[6]):
+                    self._agent_location = np.array([1, self.trap_states[2]])
+            elif np.array_equal(self._action_to_direction[state_key][action], np.array([0, 0])):
                 agent_absolute = True
                 self._agent_location = self._agent_location
-            elif np.equal(self._action_to_direction[state_key][action], np.array([0, 1])):
+            elif np.array_equal(self._action_to_direction[state_key][action], np.array([0, 1])):
                 if self._agent_location[1] == 6:
                     agent_absolute = True
                     self._agent_location[1] = 10
 
 
-        elif self._agent_location[1] in trap_states:
+        elif self._agent_location[1] in self.trap_states:
             progress = False
-            # agent is in a trap state
-            if np.equal(self._action_to_direction_trap[state_key][action], np.array([-1, 0])):
+            # envs is in a trap state
+            if np.array_equal(self._action_to_direction_trap[state_key][action], np.array([-1, 0])):
                 #stay at position
                 agent_absolute = True
                 self._agent_location = self._agent_location
-            elif np.equal(self._action_to_direction_trap[state_key][action], np.array([0, 0])):
+            elif np.array_equal(self._action_to_direction_trap[state_key][action], np.array([0, 0])):
                 # good action - transported to state 1
                 agent_absolute = True
                 self._agent_location = np.array([1, 0])
-            elif np.equal(self._action_to_direction_trap[state_key][action], np.array([0, -1])):
+            elif np.array_equal(self._action_to_direction_trap[state_key][action], np.array([0, -1])):
                 # one to the left
                 if self._agent_location[1] not in (8, 9):
                     agent_absolute = True
                     self._agent_location[1] = 9
-            elif self._action_to_direction_trap[state_key][action] == np.array([0, 1]):
+            elif np.array_equal(self._action_to_direction_trap[state_key][action], np.array([0, 1])):
                 # one to the right
                 if self._agent_location[1] not in (7, 8):
                     agent_absolute = True
@@ -205,7 +206,7 @@ class MDPAlireza(gym.Env):
             # Map the action (element of {0,1,2,3}) to the direction we walk in
 
         if not agent_absolute:
-            # In theory, I do not have to make sure that agent doesn't leave environment, because this is taken
+            # In theory, I do not have to make sure that envs doesn't leave environment, because this is taken
             # care of in the steps. It never has an action available with which it can leave environment
 
             direction = self._action_to_direction[state_key][action] if progress else self._action_to_direction_trap[state_key][action]
@@ -213,14 +214,14 @@ class MDPAlireza(gym.Env):
 
 
 
-            # An episode is done iff the agent has reached the target
-            terminated = np.array_equal(self._agent_location, self._target_location)
-            reward = 1 if terminated else 0  # Binary sparse rewards
-            observation = self._get_obs()
-            info = self._get_info()
+        # An episode is done iff the envs has reached the target
+        terminated = np.array_equal(self._agent_location, self._target_location)
+        reward = 1 if terminated else 0  # Binary sparse rewards
+        observation = self._get_obs()
+        info = self._get_info()
 
-            if self.render_mode == "human":
-                self._render_frame()
+        if self.render_mode == "human":
+            self._render_frame()
 
         return observation, reward, terminated, False, info
 
