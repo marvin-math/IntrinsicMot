@@ -18,7 +18,7 @@ for episode in range(num_episodes):
     print(f"Episode {episode + 1} started:")
 
     # Run the environment until termination or max steps
-    while not terminated and step_count < 100000:  # Use max steps as an arbitrary upper limit
+    while not terminated and step_count < 200000:  # Use max steps as an arbitrary upper limit
         action = env.action_space.sample()  # Randomly select an action from the action space
 
         # Take a step in the environment
