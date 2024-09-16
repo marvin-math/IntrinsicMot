@@ -8,7 +8,7 @@ class QLearningAgent:
     self.n_actions = 4
     self.trans_prior = trans_prior
     self.alpha = np.ones((env.size, self.n_actions, env.size)) * self.trans_prior
-
+    self.p_N = np.ones(env.size) * (1 / env.size)
 
   def epsilon_greedy(self, q, epsilon):
     """Epsilon-greedy policy: selects the maximum value action with probabilty
@@ -29,6 +29,7 @@ class QLearningAgent:
     return action
 
   def learn_environment(self, env, model_updater, planner, learning_rule, params, max_steps, n_episodes):
+    # still to implement: surprise modulated updating of alpha
     # Start with a uniform value function
     value = np.ones((env.size, self.n_actions))
     #print(f"Value as initialised: {value}")
@@ -45,10 +46,16 @@ class QLearningAgent:
       terminated = False
       reward_sum = 0
       step_count = 0
+      novelty_count = np.zeros(env.size)
 
       while not terminated and step_count < max_steps:
         # state before action
         state = observation["envs"][1]
+
+        # should we increment this before the first action or after the first action?
+        novelty_count[state] += 1
+
+        novelty = self.compute_novelty(env, novelty_count, step_count, state)
         # choose next action
         action = self.epsilon_greedy(value[state], params['epsilon'])
 
@@ -66,6 +73,7 @@ class QLearningAgent:
         #print(f"Value: {value}")
 
         # update Dirichlet counts (pseudo counts for state transitions)
+        # To Do: implement surprise modulation in these updates
         self.alpha[state, action, next_state] += 1
         #print(f"Alpha: {self.alpha}")
 
@@ -85,6 +93,13 @@ class QLearningAgent:
       steps[episode] = step_count
 
     return value, reward_sums, steps
+
+  def compute_novelty(self, env, novelty_count, step_count, state):
+
+    self.p_N[state] = (novelty_count[state] + 1) / (step_count + env.size)
+    novelty_t = -np.log(self.p_N[state])
+    return novelty_t
+
 
   def q_learning(self, state, action, reward, next_state, value, params):
 
