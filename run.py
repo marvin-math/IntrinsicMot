@@ -12,13 +12,14 @@ params = {
   'alpha': 0.1,  # learning rate
   'gamma': 0.5,  # discount factor
   'k': 2,  # number of planning steps
-  'trans_prior': 0.01  # prior for transition probabilities
+  'trans_prior': 0.01,  # prior for transition probabilities
+  'pure_novelty': True  # whether to use novelty reward
 }
 
 # end of functions
 
 env = gym.make('MDPAlireza-v0')
-q_agent = q_learning_agent.QLearningAgent(env, params['trans_prior'])
+q_agent = q_learning_agent.QLearningAgent(env, params)
 
 
 # Number of episodes for the agent to run

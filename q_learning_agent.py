@@ -4,11 +4,12 @@ import matplotlib.pyplot as plt
 from scipy.signal import convolve as conv
 
 class QLearningAgent:
-  def __init__(self, env, trans_prior):
+  def __init__(self, env, params):
     self.n_actions = 4
-    self.trans_prior = trans_prior
+    self.trans_prior = params['trans_prior']
     self.alpha = np.ones((env.size, self.n_actions, env.size)) * self.trans_prior
     self.p_N = np.ones(env.size) * (1 / env.size)
+    self.pure_novelty = params['pure_novelty']
 
   def epsilon_greedy(self, q, epsilon):
     """Epsilon-greedy policy: selects the maximum value action with probabilty
@@ -53,15 +54,17 @@ class QLearningAgent:
         state = observation["envs"][1]
 
         # should we increment this before the first action or after the first action?
-        novelty_count[state] += 1
 
-        novelty = self.compute_novelty(env, novelty_count, step_count, state)
         # choose next action
         action = self.epsilon_greedy(value[state], params['epsilon'])
 
 
         # observe outcome of action on environment
         observation, reward, terminated, truncated, info = env.step(action)
+        novelty = self.compute_novelty(env, novelty_count, step_count, state)
+        novelty_count[state] += 1
+
+
         #print(f"Reward after step: {reward}")
         step_count += 1
 
@@ -69,6 +72,8 @@ class QLearningAgent:
         next_state = observation["envs"][1]
 
         # update value function
+        if self.pure_novelty:
+          reward = novelty
         value = learning_rule(state, action, reward, next_state, value, params)
         #print(f"Value: {value}")
 
@@ -78,6 +83,7 @@ class QLearningAgent:
         #print(f"Alpha: {self.alpha}")
 
         # update model
+        #I think I have a model too much
         model = model_updater(model, state, action, reward, next_state)
         #print(f"Model after update: {model}")
 
