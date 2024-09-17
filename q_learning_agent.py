@@ -71,8 +71,8 @@ class QLearningAgent:
         next_state = observation["envs"][1]
 
         # compute novelty and update novelty count
-        novelty = self.compute_novelty(env, self.novelty_count, step_count, next_state)
         self.novelty_count[next_state] += 1
+        novelty = self.compute_novelty(env, self.novelty_count, step_count)
 
         # compute surprise and update surprise count
         surprise = self.compute_surprise(self.alpha, state, action, next_state)
@@ -87,9 +87,6 @@ class QLearningAgent:
         value = learning_rule(state, action, reward, next_state, value, params)
         #print(f"Value: {value}")
 
-        # update Dirichlet counts (pseudo counts for state transitions)
-        # To Do: implement surprise modulation in these updates
-        #print(f"Alpha: {self.alpha}")
 
         # update model
         #I think I have a model too much
@@ -112,10 +109,9 @@ class QLearningAgent:
 
     return value, reward_sums, steps
 
-  def compute_novelty(self, env, novelty_count, step_count, state):
-
-    self.p_N[state] = (novelty_count[state] + 1) / (step_count + env.size)
-    novelty_t = -np.log(self.p_N[state])
+  def compute_novelty(self, env, novelty_count, step_count):
+    self.p_N = (novelty_count + 1) / (step_count + env.size)
+    novelty_t = -np.log(self.p_N)
     return novelty_t
 
   def compute_surprise(self, alpha, state, action, next_state):
@@ -191,6 +187,8 @@ class QLearningAgent:
     Returns:
       ndarray: the updated value function of shape (n_states, n_actions)
     """
+    # sample from states visited, but sample from all actions
+
     # Perform k additional updates at random (planning)
     for _ in range(params['k']):
       # Find state-action combinations for which we've experienced a reward i.e.
@@ -206,7 +204,7 @@ class QLearningAgent:
       # Sample next state probabilities using the Dirichlet distribution
       transition_probs = np.random.dirichlet(alpha[state, action])
       next_state = np.random.choice(np.arange(alpha.shape[2]), p=transition_probs)
-      surprise = -np.log(transition_probs[next_state])
+      #surprise = -np.log(transition_probs[next_state])
 
 
       # Obtain the expected reward and next state from the model
