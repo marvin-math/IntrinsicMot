@@ -216,6 +216,7 @@ class MDPAlireza(gym.Env):
 
         # An episode is done iff the envs has reached the target
         terminated = np.array_equal(self._agent_location, self._target_location)
+        # think about the implementation of reward here - same name as reward in the agent, but different concept
         reward = 1 if terminated else 0  # Binary sparse rewards
         observation = self._get_obs()
         info = self._get_info()

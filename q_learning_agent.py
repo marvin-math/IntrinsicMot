@@ -10,6 +10,7 @@ class QLearningAgent:
     self.alpha = np.ones((env.size, self.n_actions, env.size)) * self.trans_prior
     self.p_N = np.ones(env.size) * (1 / env.size)
     self.pure_novelty = params['pure_novelty']
+    self.pure_surprise = params['pure_surprise']
 
   def epsilon_greedy(self, q, epsilon):
     """Epsilon-greedy policy: selects the maximum value action with probabilty
@@ -60,9 +61,7 @@ class QLearningAgent:
 
 
         # observe outcome of action on environment
-        observation, reward, terminated, truncated, info = env.step(action)
-        novelty = self.compute_novelty(env, novelty_count, step_count, state)
-        novelty_count[state] += 1
+        observation, env_reward, terminated, truncated, info = env.step(action)
 
 
         #print(f"Reward after step: {reward}")
@@ -71,15 +70,25 @@ class QLearningAgent:
         # state after action
         next_state = observation["envs"][1]
 
+        # compute novelty and update novelty count
+        novelty = self.compute_novelty(env, novelty_count, step_count, next_state)
+        novelty_count[next_state] += 1
+
+        # compute surprise and update surprise count
+        surprise = self.compute_surprise(self.alpha, state, action, next_state)
+        self.alpha[state, action, next_state] += 1
+
+
         # update value function
         if self.pure_novelty:
           reward = novelty
+        elif self.pure_surprise:
+          reward = surprise
         value = learning_rule(state, action, reward, next_state, value, params)
         #print(f"Value: {value}")
 
         # update Dirichlet counts (pseudo counts for state transitions)
         # To Do: implement surprise modulation in these updates
-        self.alpha[state, action, next_state] += 1
         #print(f"Alpha: {self.alpha}")
 
         # update model
@@ -97,6 +106,9 @@ class QLearningAgent:
 
       reward_sums[episode] = reward_sum
       steps[episode] = step_count
+      print(model)
+      print(novelty_count)
+
 
     return value, reward_sums, steps
 
@@ -106,6 +118,10 @@ class QLearningAgent:
     novelty_t = -np.log(self.p_N[state])
     return novelty_t
 
+  def compute_surprise(self, alpha, state, action, next_state):
+    transition_probs = np.random.dirichlet(alpha[state, action])
+    surprise = -np.log(transition_probs[next_state])
+    return surprise
 
   def q_learning(self, state, action, reward, next_state, value, params):
 
@@ -188,8 +204,10 @@ class QLearningAgent:
       state, action = candidates[idx]
 
       # Sample next state probabilities using the Dirichlet distribution
-      transition_probs = alpha[state, action] / alpha[state, action].sum()
+      transition_probs = np.random.dirichlet(alpha[state, action])
       next_state = np.random.choice(np.arange(alpha.shape[2]), p=transition_probs)
+      surprise = -np.log(transition_probs[next_state])
+
 
       # Obtain the expected reward and next state from the model
       reward = model[state, action, 0]
@@ -198,5 +216,3 @@ class QLearningAgent:
       value = self.q_learning(state, action, reward, next_state, value, params)
 
     return value
-
-
