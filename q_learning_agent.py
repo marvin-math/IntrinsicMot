@@ -39,7 +39,7 @@ class QLearningAgent:
     # Run learning
     reward_sums = np.zeros(n_episodes)
     steps = np.zeros(n_episodes)
-    model = np.nan*np.zeros((env.size, self.n_actions, 2)) # reward and next state
+    model = np.nan*np.zeros((env.size, self.n_actions, 1)) # reward
     #print(f"Model: {model}")
 
     # Loop over episodes
@@ -63,34 +63,31 @@ class QLearningAgent:
         # observe outcome of action on environment
         observation, env_reward, terminated, truncated, info = env.step(action)
 
-
-        #print(f"Reward after step: {reward}")
-        step_count += 1
-
-        # state after action
         next_state = observation["envs"][1]
 
-        # compute novelty and update novelty count
+
+        # increase counts
+        step_count += 1
         self.novelty_count[next_state] += 1
+        self.alpha[state, action, next_state] += 1
+
+
+
+
+        # compute novelty and update novelty count
         novelty = self.compute_novelty(env, self.novelty_count, step_count)
 
         # compute surprise and update surprise count
         surprise = self.compute_surprise(self.alpha, state, action, next_state)
-        self.alpha[state, action, next_state] += 1
 
-
-        # update value function
         if self.pure_novelty:
           reward = novelty
         elif self.pure_surprise:
           reward = surprise
-        value = learning_rule(state, action, reward, next_state, value, params)
-        #print(f"Value: {value}")
-
 
         # update model
         #I think I have a model too much
-        model = model_updater(model, state, action, reward, next_state)
+        model = model_updater(model, state, action, reward)
         #print(f"Model after update: {model}")
 
         # planning
@@ -153,7 +150,7 @@ class QLearningAgent:
     return value
 
 
-  def dyna_q_model_update(self, model, state, action, reward, next_state):
+  def dyna_q_model_update(self, model, state, action, reward):
     """ Dyna-Q model update
 
     Args:
@@ -169,7 +166,7 @@ class QLearningAgent:
       ndarray: the updated model
     """
     # Update our model with the observed reward and next state
-    model[state, action] = reward, next_state
+    model[state, action] = reward
 
     return model
 
@@ -194,6 +191,9 @@ class QLearningAgent:
       # Find state-action combinations for which we've experienced a reward i.e.
       # the reward value is not NaN. The outcome of this expression is an Nx2
       # matrix, where each row is a state and action value, respectively.
+      # update value function
+
+
       candidates = np.array(np.where(~np.isnan(model[:,:,0]))).T
       # Write an expression for selecting a random row index from our candidates
       idx = np.random.choice(len(candidates))
@@ -204,7 +204,6 @@ class QLearningAgent:
       # Sample next state probabilities using the Dirichlet distribution
       transition_probs = np.random.dirichlet(alpha[state, action])
       next_state = np.random.choice(np.arange(alpha.shape[2]), p=transition_probs)
-      #surprise = -np.log(transition_probs[next_state])
 
 
       # Obtain the expected reward and next state from the model
