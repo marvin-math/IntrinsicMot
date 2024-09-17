@@ -48,7 +48,7 @@ class QLearningAgent:
       terminated = False
       reward_sum = 0
       step_count = 0
-      novelty_count = np.zeros(env.size)
+      self.novelty_count = np.zeros(env.size)
 
       while not terminated and step_count < max_steps:
         # state before action
@@ -71,8 +71,8 @@ class QLearningAgent:
         next_state = observation["envs"][1]
 
         # compute novelty and update novelty count
-        novelty = self.compute_novelty(env, novelty_count, step_count, next_state)
-        novelty_count[next_state] += 1
+        novelty = self.compute_novelty(env, self.novelty_count, step_count, next_state)
+        self.novelty_count[next_state] += 1
 
         # compute surprise and update surprise count
         surprise = self.compute_surprise(self.alpha, state, action, next_state)
@@ -107,7 +107,7 @@ class QLearningAgent:
       reward_sums[episode] = reward_sum
       steps[episode] = step_count
       print(model)
-      print(novelty_count)
+      print(self.novelty_count)
 
 
     return value, reward_sums, steps

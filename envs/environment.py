@@ -178,7 +178,7 @@ class MDPAlireza(gym.Env):
             elif np.array_equal(self._action_to_direction[state_key][action], np.array([0, 1])):
                 if self._agent_location[1] == 6:
                     agent_absolute = True
-                    self._agent_location[1] = 10
+                    self._agent_location[1] = 0
 
 
         elif self._agent_location[1] in self.trap_states:
