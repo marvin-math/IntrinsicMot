@@ -2,6 +2,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal import convolve as conv
+import heapq
 
 class QLearningAgent:
   def __init__(self, env, params):
@@ -30,7 +31,7 @@ class QLearningAgent:
 
     return action
 
-  def learn_environment(self, env, model_updater, planner, learning_rule, params, max_steps, n_episodes):
+  def learn_environment(self, env, r_f_updater, planner, learning_rule, params, max_steps, n_episodes):
     # still to implement: surprise modulated updating of alpha
     # Start with a uniform value function
     value = np.ones((env.size, self.n_actions))
@@ -39,8 +40,8 @@ class QLearningAgent:
     # Run learning
     reward_sums = np.zeros(n_episodes)
     steps = np.zeros(n_episodes)
-    model = np.nan*np.zeros((env.size, self.n_actions, 1)) # reward
-    #print(f"Model: {model}")
+    reward_fun = np.nan*np.zeros((env.size, self.n_actions)) # reward
+    #print(f"Reward Function: {reward_fun}")
 
     # Loop over episodes
     for episode in range(n_episodes):
@@ -81,18 +82,19 @@ class QLearningAgent:
         surprise = self.compute_surprise(self.alpha, state, action, next_state)
 
         if self.pure_novelty:
-          reward = novelty
+          reward = novelty[next_state]
         elif self.pure_surprise:
           reward = surprise
+        else:
+          reward = env_reward
 
-        # update model
-        #I think I have a model too much
-        model = model_updater(model, state, action, reward)
-        #print(f"Model after update: {model}")
+        # update reward function
+        reward_fun = r_f_updater(reward_fun, state, action, reward)
+        #print(f"reward_fun after update: {reward_fun}")
 
         # planning
-        value = planner(self.alpha, model, value, params)
-        #print(f"Value after planning: {value}")
+        value = planner(self.alpha, reward_fun, value, params)
+        print(f"Value after planning: {value}")
 
         # sum rewards obtained
         reward_sum += reward
@@ -100,8 +102,8 @@ class QLearningAgent:
 
       reward_sums[episode] = reward_sum
       steps[episode] = step_count
-      print(model)
-      print(self.novelty_count)
+      print(reward_fun)
+      #print(self.novelty_count)
 
 
     return value, reward_sums, steps
@@ -131,6 +133,7 @@ class QLearningAgent:
     Returns:
       ndarray: the updated value function of shape (n_states, n_actions)
     """
+
     # Q-value of current state-action pair
     q = value[state, action]
     #print(f"Q: {q}")
@@ -150,12 +153,12 @@ class QLearningAgent:
     return value
 
 
-  def dyna_q_model_update(self, model, state, action, reward):
-    """ Dyna-Q model update
+  def dyna_q_r_f_update(self, reward_fun, state, action, reward):
+    """ Dyna-Q reward function update
 
     Args:
-      model (ndarray): An array of shape (n_states, n_actions, 2) that represents
-                       the model of the world i.e. what reward and next state do
+      reward_fun (ndarray): An array of shape (n_states, n_actions, 2) that represents
+                       the reward_fun of the world i.e. what reward and next state do
                        we expect from taking an action in a state.
       state (int): the current state identifier
       action (int): the action taken
@@ -166,16 +169,17 @@ class QLearningAgent:
       ndarray: the updated model
     """
     # Update our model with the observed reward and next state
-    model[state, action] = reward
+    reward_fun[state, action] = reward
+    #print(f"Reward Function after update: {reward_fun}")
 
-    return model
+    return reward_fun
 
 
-  def dyna_q_planning(self, alpha, model, value, params):
+  def dyna_q_planning(self, alpha, reward_fun, value, params):
     """ Dyna-Q planning
 
     Args:
-      model (ndarray): An array of shape (n_states, n_actions, 2) that represents
+      reward_fun (ndarray): An array of shape (n_states, n_actions, 2) that represents
                        the model of the world i.e. what reward and next state do
                        we expect from taking an action in a state.
       value (ndarray): current value function of shape (n_states, n_actions)
@@ -184,32 +188,45 @@ class QLearningAgent:
     Returns:
       ndarray: the updated value function of shape (n_states, n_actions)
     """
-    # sample from states visited, but sample from all actions
 
-    # Perform k additional updates at random (planning)
-    for _ in range(params['k']):
-      # Find state-action combinations for which we've experienced a reward i.e.
-      # the reward value is not NaN. The outcome of this expression is an Nx2
-      # matrix, where each row is a state and action value, respectively.
-      # update value function
+    # Initialize a priority queue
+    priority_queue = []
 
+    # find all state, action pairs that have been visited
+    candidates = np.array(np.where(~np.isnan(reward_fun[:, :]))).T
 
-      candidates = np.array(np.where(~np.isnan(model[:,:,0]))).T
-      # Write an expression for selecting a random row index from our candidates
-      idx = np.random.choice(len(candidates))
+    for state, action in candidates:
+      # Sample next state probabilities using the Dirichlet distribution
+      transition_probs = np.random.dirichlet(alpha[state, action])
+      next_state = np.random.choice(np.arange(alpha.shape[2]), p=transition_probs)
 
-      # Obtain the randomly selected state and action values from the candidates
-      state, action = candidates[idx]
+      reward = reward_fun[state, action]
+
+      # Q-value of current state-action pair
+      q = value[state, action]
+
+      # finding the maximum Q-value at the current state
+      max_next_q = np.max(value[int(next_state)])
+
+      #compute the TD error
+      td_error = reward + params['gamma'] * max_next_q - q
+
+      # Add the state-action pair to the priority queue based on the TD error
+      heapq.heappush(priority_queue, (-abs(td_error), (state, action)))
+
+    for _ in range(min(params['k'], len(priority_queue))):
+      # Pop the highest-priority state-action pair
+      priority, (state, action) = heapq.heappop(priority_queue)
 
       # Sample next state probabilities using the Dirichlet distribution
       transition_probs = np.random.dirichlet(alpha[state, action])
       next_state = np.random.choice(np.arange(alpha.shape[2]), p=transition_probs)
 
+      # Get the reward from the model
+      reward = reward_fun[state, action]
+      print(f"Reward in planning: {reward}")
 
-      # Obtain the expected reward and next state from the model
-      reward = model[state, action, 0]
-
-      # Update the value function using Q-learning
+      # Update the Q-value using Q-learning
       value = self.q_learning(state, action, reward, next_state, value, params)
 
     return value
