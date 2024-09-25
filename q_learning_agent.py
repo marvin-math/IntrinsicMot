@@ -31,6 +31,13 @@ class QLearningAgent:
 
     return action
 
+  def softmax(self,q):
+    # TODO add temperature parameter
+    """Compute softmax values for each sets of scores in x."""
+    probabilities = np.exp(q) / np.sum(np.exp(q), axis=0)
+    action = np.random.choice(len(q), p=probabilities)
+    return action
+
   def learn_environment(self, env, r_f_updater, planner, learning_rule, params, max_steps, n_episodes):
     # still to implement: surprise modulated updating of alpha
     # Start with a uniform value function
@@ -50,6 +57,14 @@ class QLearningAgent:
       reward_sum = 0
       step_count = 0
       self.novelty_count = np.zeros(env.size)
+      self.step_count_dict = {"50": None,
+                "100": None,
+                "200": None,
+                "500": None,
+                "1000": None,
+                "2000": None,
+                "5000": None,
+                "10000": None}
 
       while not terminated and step_count < max_steps:
         # state before action
@@ -57,8 +72,8 @@ class QLearningAgent:
 
         # should we increment this before the first action or after the first action?
 
-        # choose next action
-        action = self.epsilon_greedy(value[state], params['epsilon'])
+
+        action = self.softmax(value[state])
 
 
         # observe outcome of action on environment
@@ -69,10 +84,25 @@ class QLearningAgent:
 
         # increase counts
         step_count += 1
-        self.novelty_count[next_state] += 1
         self.alpha[state, action, next_state] += 1
-
-
+        self.novelty_count[next_state] += 1
+        #update different novelty counters
+        if step_count == 50:
+          self.step_count_dict["50"] = self.novelty_count.copy()
+        elif step_count == 100:
+          self.step_count_dict["100"] = self.novelty_count.copy()
+        elif step_count == 200:
+          self.step_count_dict["200"] = self.novelty_count.copy()
+        elif step_count == 500:
+          self.step_count_dict["500"] = self.novelty_count.copy()
+        elif step_count == 1000:
+          self.step_count_dict["1000"] = self.novelty_count.copy()
+        elif step_count == 2000:
+          self.step_count_dict["2000"] = self.novelty_count.copy()
+        elif step_count == 5000:
+          self.step_count_dict["5000"] = self.novelty_count.copy()
+        elif step_count == 9999:
+          self.step_count_dict["10000"] = self.novelty_count.copy()
 
 
         # compute novelty and update novelty count
@@ -94,7 +124,7 @@ class QLearningAgent:
 
         # planning
         value = planner(self.alpha, reward_fun, value, params)
-        print(f"Value after planning: {value}")
+        #print(f"Value after planning: {value}")
 
         # sum rewards obtained
         reward_sum += reward
@@ -102,7 +132,7 @@ class QLearningAgent:
 
       reward_sums[episode] = reward_sum
       steps[episode] = step_count
-      print(reward_fun)
+      #print(reward_fun)
       #print(self.novelty_count)
 
 
@@ -175,7 +205,7 @@ class QLearningAgent:
     return reward_fun
 
 
-  def dyna_q_planning(self, alpha, reward_fun, value, params):
+  def prioritized_planning(self, alpha, reward_fun, value, params):
     """ Dyna-Q planning
 
     Args:
@@ -224,7 +254,7 @@ class QLearningAgent:
 
       # Get the reward from the model
       reward = reward_fun[state, action]
-      print(f"Reward in planning: {reward}")
+      #print(f"Reward in planning: {reward}")
 
       # Update the Q-value using Q-learning
       value = self.q_learning(state, action, reward, next_state, value, params)
