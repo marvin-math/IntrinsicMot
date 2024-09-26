@@ -20,6 +20,7 @@ params_surprise = {
     'trans_prior': 0.01,  # prior for transition probabilities
     'pure_novelty': False,  # whether to use novelty reward
     'pure_surprise': True,  # whether to use surprise reward
+    'temperature': 0.1  # temperature for softmax policy
 }
 
 params_novelty = {
@@ -29,16 +30,17 @@ params_novelty = {
     'k': 5,  # number of planning steps
     'trans_prior': 0.01,  # prior for transition probabilities
     'pure_novelty': True,  # whether to use novelty reward
-    'pure_surprise': False  # whether to use surprise reward
+    'pure_surprise': False,  # whether to use surprise reward
+    'temperature': 0.1  # temperature for softmax policy
 }
 
 # episodes/trials
 n_episodes = 1
 max_steps = 10000
-n_runs = 10  # Number of times to run each agent
+n_runs = 100  # Number of times to run each agent
 
 # List of trial segments
-segments = ['50', '100', '200', '500', '1000', '2000', '5000', '10000']
+segments = ['10', '20', '30', '40', '50', '100', '200', '500', '1000', '2000', '5000', '10000']  # Trial segments
 states = np.arange(11)  # Assuming there are 11 states, adjust this as needed
 
 # Initialize dictionaries to store average counts for each agent
@@ -72,15 +74,13 @@ for segment in segments:
     average_surprise_counts[segment] /= n_runs
     average_novelty_counts[segment] /= n_runs
 
-# List of trial segments
-segments = ['50', '100', '200', '500', '1000', '2000', '5000', '10000']  # Trial segments
-states = np.arange(11)  # Assuming there are 11 states
 
 # Colors for each group
 color_groups = {
-    'group_1_3': sns.color_palette("muted", 3)[0],  # Color for states 1-3
-    'group_4_6': sns.color_palette("muted", 3)[1],  # Color for states 4-6
-    'group_7_9': sns.color_palette("muted", 3)[2],  # Color for states 7-9
+    'group_1_3': sns.color_palette("muted", 4)[0],  # Color for states 1-3
+    'group_4_6': sns.color_palette("muted", 4)[1],  # Color for states 4-6
+    'TrapStates': sns.color_palette("muted", 4)[2],  # Color for states 7-9
+    'random': sns.color_palette("muted", 4)[3]  # Color for random states
 }
 
 # Loop through each segment and plot separately
@@ -96,27 +96,31 @@ for segment in segments:
     r2 = [x + bar_width for x in r1]  # Single bar for novelty agent
 
     # Group states together
-    surprise_group_1_3 = np.sum(surprise_data[0:4])  # Sum states 1, 2, 3
+    surprise_group_1_3 = np.sum(surprise_data[0:2])  # Sum states 1, 2, 3
+    surprise_random_group = np.sum(surprise_data[2:4])
     surprise_group_4_6 = np.sum(surprise_data[4:7])  # Sum states 4, 5, 6
     surprise_group_7_9 = np.sum(surprise_data[7:10])  # Sum states 7, 8, 9
 
-    novelty_group_1_3 = np.sum(novelty_data[0:4])
+    novelty_group_1_3 = np.sum(novelty_data[0:2])
+    novelty_random_group = np.sum(novelty_data[2:4])
     novelty_group_4_6 = np.sum(novelty_data[4:7])
     novelty_group_7_9 = np.sum(novelty_data[7:10])
 
     # Stacked bar for surprise agent
     ax.bar(r1, surprise_group_1_3, color=color_groups['group_1_3'], width=bar_width, edgecolor='grey',
-           label='States 1-3')
-    ax.bar(r1, surprise_group_4_6, bottom=surprise_group_1_3, color=color_groups['group_4_6'], width=bar_width,
-           edgecolor='grey', label='States 4-7')
-    ax.bar(r1, surprise_group_7_9, bottom=surprise_group_1_3 + surprise_group_4_6, color=color_groups['group_7_9'],
+           label='States 1 and 2')
+    ax.bar(r1, surprise_random_group, bottom=surprise_group_1_3, color=color_groups['random'], width=bar_width, edgecolor='grey', label = 'Stochastic States')
+    ax.bar(r1, surprise_group_4_6, bottom=surprise_random_group + surprise_group_1_3, color=color_groups['group_4_6'], width=bar_width,
+           edgecolor='grey', label='States 5 and 6')
+    ax.bar(r1, surprise_group_7_9, bottom=surprise_group_1_3 + surprise_group_4_6 + surprise_random_group, color=color_groups['TrapStates'],
            width=bar_width, edgecolor='grey', label='Trap States')
 
     # Stacked bar for novelty agent
     ax.bar(r2, novelty_group_1_3, color=color_groups['group_1_3'], width=bar_width, edgecolor='grey')
-    ax.bar(r2, novelty_group_4_6, bottom=novelty_group_1_3, color=color_groups['group_4_6'], width=bar_width,
+    ax.bar(r2, novelty_random_group, bottom=novelty_group_1_3, color=color_groups['random'], width=bar_width, edgecolor='grey')
+    ax.bar(r2, novelty_group_4_6, bottom=novelty_random_group+ novelty_group_1_3, color=color_groups['group_4_6'], width=bar_width,
            edgecolor='grey')
-    ax.bar(r2, novelty_group_7_9, bottom=novelty_group_1_3 + novelty_group_4_6, color=color_groups['group_7_9'],
+    ax.bar(r2, novelty_group_7_9, bottom=novelty_group_1_3 + novelty_group_4_6 + novelty_random_group, color=color_groups['group_7_9'],
            width=bar_width, edgecolor='grey')
 
     # Add labels for agents

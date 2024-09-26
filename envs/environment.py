@@ -1,5 +1,5 @@
 import numpy as np
-
+import random
 import gym
 from gym import spaces
 
@@ -174,7 +174,10 @@ class MDPAlireza(gym.Env):
                     self._agent_location = np.array([1, self.trap_states[2]])
             elif np.array_equal(self._action_to_direction[state_key][action], np.array([0, 0])):
                 agent_absolute = True
-                self._agent_location = self._agent_location
+                if self._agent_location[1] in [2, 3]:
+                    self._agent_location[1] = random.choice([0,1,2,3,4,5,6,7,8,9])
+                else:
+                    self._agent_location = self._agent_location
             elif np.array_equal(self._action_to_direction[state_key][action], np.array([0, 1])):
                 if self._agent_location[1] == 6:
                     agent_absolute = True

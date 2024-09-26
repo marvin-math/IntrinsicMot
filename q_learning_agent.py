@@ -12,6 +12,7 @@ class QLearningAgent:
     self.p_N = np.ones(env.size) * (1 / env.size)
     self.pure_novelty = params['pure_novelty']
     self.pure_surprise = params['pure_surprise']
+    self.temperature = params['temperature']
 
   def epsilon_greedy(self, q, epsilon):
     """Epsilon-greedy policy: selects the maximum value action with probabilty
@@ -34,7 +35,7 @@ class QLearningAgent:
   def softmax(self,q):
     # TODO add temperature parameter
     """Compute softmax values for each sets of scores in x."""
-    probabilities = np.exp(q) / np.sum(np.exp(q), axis=0)
+    probabilities = np.exp(q/self.temperature) / np.sum(np.exp(q/self.temperature), axis=0)
     action = np.random.choice(len(q), p=probabilities)
     return action
 
@@ -57,7 +58,12 @@ class QLearningAgent:
       reward_sum = 0
       step_count = 0
       self.novelty_count = np.zeros(env.size)
-      self.step_count_dict = {"50": None,
+      self.step_count_dict = {
+                "10": None,
+                "20": None,
+                "30": None,
+                "40": None,
+                "50": None,
                 "100": None,
                 "200": None,
                 "500": None,
@@ -87,7 +93,15 @@ class QLearningAgent:
         self.alpha[state, action, next_state] += 1
         self.novelty_count[next_state] += 1
         #update different novelty counters
-        if step_count == 50:
+        if step_count == 10:
+          self.step_count_dict["10"] = self.novelty_count.copy()
+        elif step_count == 20:
+          self.step_count_dict["20"] = self.novelty_count.copy()
+        elif step_count == 30:
+          self.step_count_dict["30"] = self.novelty_count.copy()
+        elif step_count == 40:
+          self.step_count_dict["40"] = self.novelty_count.copy()
+        elif step_count == 50:
           self.step_count_dict["50"] = self.novelty_count.copy()
         elif step_count == 100:
           self.step_count_dict["100"] = self.novelty_count.copy()

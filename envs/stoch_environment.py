@@ -7,7 +7,7 @@ class MDPAlirezaStoch(gym.Env):
     # To Do: figure out how to implement episode logic (has to do with reset)
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4}
 
-    def __init__(self, render_mode=None, size=11):
+    def __init__(self, render_mode=None, size=58):
         self.size = size  # The size of the square grid
         self.window_size = 512  # The size of the PyGame window
 
@@ -25,9 +25,10 @@ class MDPAlirezaStoch(gym.Env):
         self.progress_states = [0, 1, 2, 3, 4, 5]
         self.trap_states = [6, 7]
         self.goal_states = [8, 9, 10]
-        self.stochastic_states = list(range(20, 70))
+        self.stochastic_states = list(range(11, 61))
         self.inv_goal_prob = 0.02
         self.probabilities = [1 - self.inv_goal_prob, self.inv_goal_prob / 2, self.inv_goal_prob / 2]
+        self.goal_counter = 0
 
         """
         The following dictionary maps abstract actions from `self.action_space` to
@@ -96,6 +97,20 @@ class MDPAlirezaStoch(gym.Env):
                     state_dict[d] = available_actions_trap[counter]
                     counter += 1
 
+        self._action_to_direction_stochastic = {
+            f'state_{i}': {0: None, 1: None, 2: None} for i in range(11, 61)
+        }
+
+        available_actions_stoch = [np.array([0, 0]), np.array([1, 0]), np.array([0, 1])]
+
+        for state_key in self._action_to_direction_stochastic:
+            np.random.shuffle(available_actions_stoch)
+            counter = 0
+            state_dict = self._action_to_direction_stochastic[state_key]
+            for d in state_dict:
+                if state_dict[d] is None:
+                    state_dict[d] = available_actions_stoch[counter]
+                    counter += 1
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
 
@@ -160,14 +175,16 @@ class MDPAlirezaStoch(gym.Env):
                     self._agent_location = np.array([1, self.trap_states[1]])
             elif np.array_equal(self._action_to_direction[state_key][action], np.array([0, 0])):
                 agent_absolute = True
-                if self._agent_location[1] == 4:
-                    self._agent_location = random.choice(list_stochastic_states) # TODO - create list of stochastic states
+                if self._agent_location[1] == 3:
+                    self._agent_location[1] = random.choice(self.stochastic_states)
                 else:
                     self._agent_location = self._agent_location
             elif np.array_equal(self._action_to_direction[state_key][action], np.array([0, 1])):
                 if self._agent_location[1] == 5:
                     agent_absolute = True
                     self._agent_location[1] = np.random.choice(self.goal_states, p = self.probabilities)
+                    self.goal_counter += 1
+                    self._agent_location[1] = np.random.choice([0, 1])
 
 
         elif self._agent_location[1] in self.trap_states:
@@ -192,6 +209,20 @@ class MDPAlirezaStoch(gym.Env):
                     agent_absolute = True
                     self._agent_location[1] = 7
 
+        elif self._agent_location[1] in self.stochastic_states:
+            if np.array_equal(self._action_to_direction_trap[state_key][action], np.array([0, 0])):
+                agent_absolute = True
+                self._agent_location[1] = random.choice(self.stochastic_states)
+            elif np.array_equal(self._action_to_direction_trap[state_key][action], np.array([1, 0])):
+                agent_absolute = True
+                self._agent_location[1] = random.choice(self.stochastic_states)
+            elif np.array_equal(self._action_to_direction_trap[state_key][action], np.array([0, 1])):
+                agent_absolute = True
+                self._agent_location[1] = 3
+
+
+
+
             # Map the action (element of {0,1,2,3}) to the direction we walk in
 
         if not agent_absolute:
@@ -204,7 +235,7 @@ class MDPAlirezaStoch(gym.Env):
 
 
         # An episode is done iff the envs has reached the target
-        terminated = np.array_equal(self._agent_location, self._target_location)
+        terminated = True if self.goal_counter == 5 else False
         # think about the implementation of reward here - same name as reward in the agent, but different concept
         reward = 1 if terminated else 0  # Binary sparse rewards
         observation = self._get_obs()
