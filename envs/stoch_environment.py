@@ -7,7 +7,7 @@ class MDPAlirezaStoch(gym.Env):
     # To Do: figure out how to implement episode logic (has to do with reset)
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4}
 
-    def __init__(self, render_mode=None, size=58):
+    def __init__(self, render_mode=None, size=61):
         self.size = size  # The size of the square grid
         self.window_size = 512  # The size of the PyGame window
 
@@ -28,7 +28,6 @@ class MDPAlirezaStoch(gym.Env):
         self.stochastic_states = list(range(11, 61))
         self.inv_goal_prob = 0.02
         self.probabilities = [1 - self.inv_goal_prob, self.inv_goal_prob / 2, self.inv_goal_prob / 2]
-        self.goal_counter = 0
 
         """
         The following dictionary maps abstract actions from `self.action_space` to
@@ -139,10 +138,13 @@ class MDPAlirezaStoch(gym.Env):
     def reset(self, seed=None, options=None):
 
         # randomly choose whether start location is state 1 or 2
-        self._agent_location = random.choice(np.array([1, 0], np.array([1,1])))
+        self._agent_location = random.choice([np.array([1, 0]), np.array([1,1])])
+        # counts how often goal state was visited
+        self.goal_counter = 0
+
 
         # target location
-        self._target_locations = [np.array([1, 8]), np.array([1, 9]), np.array([1, 10])]
+        self._target_location = [np.array([1, 8]), np.array([1, 9]), np.array([1, 10])]
         np.random.shuffle(self.progress_states)
         np.random.shuffle(self.trap_states)
 
@@ -190,33 +192,29 @@ class MDPAlirezaStoch(gym.Env):
         elif self._agent_location[1] in self.trap_states:
             progress = False
             # envs is in a trap state
-            if np.array_equal(self._action_to_direction_trap[state_key][action], np.array([-1, 0])):
-                #stay at position
+            if np.array_equal(self._action_to_direction_trap[state_key][action], np.array([0, 0])):
                 agent_absolute = True
                 self._agent_location = self._agent_location
-            elif np.array_equal(self._action_to_direction_trap[state_key][action], np.array([0, 0])):
+            elif np.array_equal(self._action_to_direction_trap[state_key][action], np.array([1, 0])):
                 # good action - transported to state 1
                 agent_absolute = True
                 self._agent_location = np.array([1, 0])
-            elif np.array_equal(self._action_to_direction_trap[state_key][action], np.array([0, -1])):
-                # one to the left
-                if self._agent_location[1] not in (8, 9):
-                    agent_absolute = True
-                    self._agent_location[1] = 9
             elif np.array_equal(self._action_to_direction_trap[state_key][action], np.array([0, 1])):
-                # one to the right
-                if self._agent_location[1] not in (7, 8):
-                    agent_absolute = True
+                agent_absolute = True
+                if self._agent_location[1] == 6:
                     self._agent_location[1] = 7
+                else:
+                    self._agent_location[1] = 6
+
 
         elif self._agent_location[1] in self.stochastic_states:
-            if np.array_equal(self._action_to_direction_trap[state_key][action], np.array([0, 0])):
+            if np.array_equal(self._action_to_direction_stochastic[state_key][action], np.array([0, 0])):
                 agent_absolute = True
                 self._agent_location[1] = random.choice(self.stochastic_states)
-            elif np.array_equal(self._action_to_direction_trap[state_key][action], np.array([1, 0])):
+            elif np.array_equal(self._action_to_direction_stochastic[state_key][action], np.array([1, 0])):
                 agent_absolute = True
                 self._agent_location[1] = random.choice(self.stochastic_states)
-            elif np.array_equal(self._action_to_direction_trap[state_key][action], np.array([0, 1])):
+            elif np.array_equal(self._action_to_direction_stochastic[state_key][action], np.array([0, 1])):
                 agent_absolute = True
                 self._agent_location[1] = 3
 

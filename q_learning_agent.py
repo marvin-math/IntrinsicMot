@@ -3,16 +3,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal import convolve as conv
 import heapq
+import copy
 
 class QLearningAgent:
   def __init__(self, env, params):
-    self.n_actions = 4
+    self.n_actions = 3 if params['stoch'] else 4
     self.trans_prior = params['trans_prior']
     self.alpha = np.ones((env.size, self.n_actions, env.size)) * self.trans_prior
     self.p_N = np.ones(env.size) * (1 / env.size)
     self.pure_novelty = params['pure_novelty']
     self.pure_surprise = params['pure_surprise']
     self.temperature = params['temperature']
+    self.env_size = env.size
 
   def epsilon_greedy(self, q, epsilon):
     """Epsilon-greedy policy: selects the maximum value action with probabilty
@@ -56,8 +58,8 @@ class QLearningAgent:
       observation, info = env.reset() # observation is agent location and target location
       terminated = False
       reward_sum = 0
-      step_count = 0
-      self.novelty_count = np.zeros(env.size)
+      self.step_count = 0
+      self.novelty_count = np.zeros(self.env_size)
       self.step_count_dict = {
                 "10": None,
                 "20": None,
@@ -72,13 +74,13 @@ class QLearningAgent:
                 "5000": None,
                 "10000": None}
 
-      while not terminated and step_count < max_steps:
+      while not terminated and self.step_count < max_steps:
         # state before action
         state = observation["envs"][1]
+        if self.step_count == 0:
+          self.novelty_count[state] += 1
 
-        # should we increment this before the first action or after the first action?
-
-
+        # should we update q-value function before choosing the first action?
         action = self.softmax(value[state])
 
 
@@ -89,38 +91,66 @@ class QLearningAgent:
 
 
         # increase counts
-        step_count += 1
+        self.step_count += 1
         self.alpha[state, action, next_state] += 1
         self.novelty_count[next_state] += 1
         #update different novelty counters
-        if step_count == 10:
-          self.step_count_dict["10"] = self.novelty_count.copy()
-        elif step_count == 20:
-          self.step_count_dict["20"] = self.novelty_count.copy()
-        elif step_count == 30:
-          self.step_count_dict["30"] = self.novelty_count.copy()
-        elif step_count == 40:
-          self.step_count_dict["40"] = self.novelty_count.copy()
-        elif step_count == 50:
-          self.step_count_dict["50"] = self.novelty_count.copy()
-        elif step_count == 100:
-          self.step_count_dict["100"] = self.novelty_count.copy()
-        elif step_count == 200:
-          self.step_count_dict["200"] = self.novelty_count.copy()
-        elif step_count == 500:
-          self.step_count_dict["500"] = self.novelty_count.copy()
-        elif step_count == 1000:
-          self.step_count_dict["1000"] = self.novelty_count.copy()
-        elif step_count == 2000:
-          self.step_count_dict["2000"] = self.novelty_count.copy()
-        elif step_count == 5000:
-          self.step_count_dict["5000"] = self.novelty_count.copy()
-        elif step_count == 9999:
-          self.step_count_dict["10000"] = self.novelty_count.copy()
+        if self.step_count == 10:
+          self.step_count_dict["10"] = copy.deepcopy(self.novelty_count)
+          if self.pure_novelty:
+            print(f"novelty at 10: {novelty}")
+            print(f"novelty count at 10: {self.novelty_count}")
+            print(f"value at 10: {value}")
+        elif self.step_count == 20:
+          self.step_count_dict["20"] = copy.deepcopy(self.novelty_count)
+        elif self.step_count == 30:
+          self.step_count_dict["30"] = copy.deepcopy(self.novelty_count)
+          if self.pure_novelty:
+            print(f"novelty at 30: {novelty}")
+            print(f"novelty count at 30: {self.novelty_count}")
+            print(f"value at 30: {value}")
+        elif self.step_count == 40:
+          self.step_count_dict["40"] = copy.deepcopy(self.novelty_count)
+        elif self.step_count == 50:
+          self.step_count_dict["50"] = copy.deepcopy(self.novelty_count)
+          if self.pure_novelty:
+            print(f"novelty at 50: {novelty}")
+            print(f"novelty count at 50: {self.novelty_count}")
+            print(f"value at 50: {value}")
+        elif self.step_count == 100:
+          self.step_count_dict["100"] = copy.deepcopy(self.novelty_count)
+        elif self.step_count == 200:
+          self.step_count_dict["200"] = copy.deepcopy(self.novelty_count)
+          if self.pure_novelty:
+            print(f"novelty at 200: {novelty}")
+            print(f"novelty count at 200: {self.novelty_count}")
+            print(f"value at 200: {value}")
+        elif self.step_count == 500:
+          self.step_count_dict["500"] = copy.deepcopy(self.novelty_count)
+        elif self.step_count == 1000:
+          self.step_count_dict["1000"] = copy.deepcopy(self.novelty_count)
+          if self.pure_novelty:
+            print(f"novelty at 1000: {novelty}")
+            print(f"novelty count at 1000: {self.novelty_count}")
+            print(f"value at 1000: {value}")
+        elif self.step_count == 2000:
+          self.step_count_dict["2000"] = copy.deepcopy(self.novelty_count)
+        elif self.step_count == 5000:
+          self.step_count_dict["5000"] = copy.deepcopy(self.novelty_count)
+          if self.pure_novelty:
+            print(f"novelty at 5000: {novelty}")
+            print(f"novelty count at 5000: {self.novelty_count}")
+            print(f"value at 5000: {value}")
+        elif self.step_count == 9999:
+          self.step_count_dict["10000"] = copy.deepcopy(self.novelty_count)
+          if self.pure_novelty:
+            print(f"novelty at 10000: {novelty}")
+            print(f"novelty count at 10000: {self.novelty_count}")
+            print(f"value at 10000: {value}")
 
 
         # compute novelty and update novelty count
-        novelty = self.compute_novelty(env, self.novelty_count, step_count)
+        novelty = self.compute_novelty(self.env_size, self.novelty_count, self.step_count)
 
         # compute surprise and update surprise count
         surprise = self.compute_surprise(self.alpha, state, action, next_state)
@@ -145,15 +175,15 @@ class QLearningAgent:
 
 
       reward_sums[episode] = reward_sum
-      steps[episode] = step_count
+      steps[episode] = self.step_count
       #print(reward_fun)
       #print(self.novelty_count)
 
 
     return value, reward_sums, steps
 
-  def compute_novelty(self, env, novelty_count, step_count):
-    self.p_N = (novelty_count + 1) / (step_count + env.size)
+  def compute_novelty(self, size, novelty_count, step_count):
+    self.p_N = (novelty_count + 1) / (step_count + size)
     novelty_t = -np.log(self.p_N)
     return novelty_t
 
