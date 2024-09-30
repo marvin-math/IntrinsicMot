@@ -15,7 +15,7 @@ os.makedirs(output_dir, exist_ok=True)  # Create directory if it doesn't exist
 # episodes/trials
 n_episodes = 1
 max_steps = 10000
-n_runs = 100  # Number of times to run each agent
+n_runs = 2  # Number of times to run each agent
 stoch = True
 
 # parameters needed by our policy and learning rule
@@ -51,7 +51,7 @@ params_random = {
     'gamma': 0.25,  # discount factor
     'k': 2,  # number of planning steps
     'trans_prior': 0.01,  # prior for transition probabilities
-    'pure_novelty': True,  # whether to use novelty reward
+    'pure_novelty': False,  # whether to use novelty reward
     'pure_surprise': False,  # whether to use surprise reward
     'temperature': 0.3,  # temperature for softmax policy
     'stoch': stoch,
@@ -70,6 +70,10 @@ else:
 overall_surprise_counts = {segment: np.zeros(len(states)) for segment in segments}
 overall_novelty_counts = {segment: np.zeros(len(states)) for segment in segments}
 overall_random_counts = {segment: np.zeros(len(states)) for segment in segments}
+
+segment_surprise_counts = {segment: np.zeros(len(states)) for segment in segments}
+segment_novelty_counts = {segment: np.zeros(len(states)) for segment in segments}
+segment_random_counts = {segment: np.zeros(len(states)) for segment in segments}
 
 
 # Run both agents 100 times
@@ -98,7 +102,6 @@ for run in range(n_runs):
     random_counts = q_agent_random.step_count_dict
 
     for segment in segments:
-        print(f"novelty counts in segment {segment}: {novelty_counts[segment]}")
         overall_surprise_counts[segment] = np.add(overall_surprise_counts[segment], [surprise_counts[segment]],
                                                   casting='unsafe')
         overall_novelty_counts[segment] = np.add(overall_novelty_counts[segment], [novelty_counts[segment]],
@@ -108,16 +111,25 @@ for run in range(n_runs):
 
 
     # Accumulate the state visit counts for each segment
-for segment in segments:
-    print(f"overall surprise counts in segment {segment}: {overall_surprise_counts[segment]}")
-    print(f"overall novelty counts in segment {segment}: {overall_novelty_counts[segment]}")
+for i, segment in enumerate(segments):
     overall_novelty_counts[segment] = np.divide(overall_novelty_counts[segment], n_runs)
     overall_surprise_counts[segment] = np.divide(overall_surprise_counts[segment], n_runs)
-    print(f"overall surprise counts in segment {segment}: {overall_surprise_counts[segment]}")
-    print(f"overall novelty counts in segment {segment}: {overall_novelty_counts[segment]}")
     overall_random_counts[segment] = np.divide(overall_random_counts[segment], n_runs)
 
-plot_stacked_individual_segments(stoch, segments, overall_surprise_counts, overall_novelty_counts, n_runs, output_dir)
+    if i == 0:
+        # For the first segment, just divide by the number of runs as no previous segments exist
+        segment_novelty_counts[segment] = overall_novelty_counts[segment]
+        segment_surprise_counts[segment] = overall_surprise_counts[segment]
+        segment_random_counts[segment] = overall_random_counts[segment]
+    else:
+        # For subsequent segments, subtract the cumulative average of previous segments
+        previous_segment = segments[i - 1]
+
+        segment_novelty_counts[segment] = overall_novelty_counts[segment] - overall_novelty_counts[previous_segment]
+        segment_surprise_counts[segment] = overall_surprise_counts[segment] - overall_surprise_counts[previous_segment]
+        segment_random_counts[segment] = overall_random_counts[segment] - overall_random_counts[previous_segment]
+
+plot_stacked_individual_segments(segment_surprise_counts, segment_novelty_counts, segment_random_counts, segments, stoch, output_dir)
 
 
 
