@@ -185,7 +185,7 @@ class MDPAlirezaStoch(gym.Env):
                 if self._agent_location[1] == 5:
                     agent_absolute = True
                     self._agent_location[1] = np.random.choice(self.goal_states, p = self.probabilities)
-                    self.goal_counter += 1
+                    #self.goal_counter += 1
                     self._agent_location[1] = np.random.choice([0, 1])
 
 

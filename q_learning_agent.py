@@ -15,6 +15,7 @@ class QLearningAgent:
     self.pure_surprise = params['pure_surprise']
     self.temperature = params['temperature']
     self.env_size = env.size
+    self.agent_random = params['random']
 
   def epsilon_greedy(self, q, epsilon):
     """Epsilon-greedy policy: selects the maximum value action with probabilty
@@ -39,6 +40,11 @@ class QLearningAgent:
     """Compute softmax values for each sets of scores in x."""
     probabilities = np.exp(q/self.temperature) / np.sum(np.exp(q/self.temperature), axis=0)
     action = np.random.choice(len(q), p=probabilities)
+    return action
+
+  def random_policy(self,q):
+    """Compute random choice."""
+    action = np.random.choice(len(q))
     return action
 
   def learn_environment(self, env, r_f_updater, planner, learning_rule, params, max_steps, n_episodes):
@@ -81,7 +87,10 @@ class QLearningAgent:
           self.novelty_count[state] += 1
 
         # should we update q-value function before choosing the first action?
-        action = self.softmax(value[state])
+        if self.agent_random:
+          action = self.random_policy(value[state])
+        else:
+          action = self.softmax(value[state])
 
 
         # observe outcome of action on environment
@@ -141,7 +150,7 @@ class QLearningAgent:
             print(f"novelty at 5000: {novelty}")
             print(f"novelty count at 5000: {self.novelty_count}")
             print(f"value at 5000: {value}")
-        elif self.step_count == 9999:
+        elif self.step_count == 10000:
           self.step_count_dict["10000"] = copy.deepcopy(self.novelty_count)
           if self.pure_novelty:
             print(f"novelty at 10000: {novelty}")

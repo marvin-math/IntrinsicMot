@@ -30,6 +30,8 @@ def plot_stacked_individual_segments(stoch, segments, average_surprise_counts, a
 
         surprise_data = average_surprise_counts[segment]
         novelty_data = average_novelty_counts[segment]
+        print(f"Surprise data: {surprise_data}")
+        print(f"Novelty data: {novelty_data}")
 
         # Bar width
         bar_width = 0.0005
@@ -71,13 +73,14 @@ def plot_stacked_individual_segments(stoch, segments, average_surprise_counts, a
                    color=color_groups['group_7_9'],
                    width=bar_width, edgecolor='grey')
         else:
-            surprise_progress = np.sum(surprise_data[0:6])  # Sum states 1, 2, 3
-            surprise_trap = np.sum(surprise_data[6:8])
-            surprise_stoch = np.sum(surprise_data[11:61])  # Sum states 4, 5, 6
+            surprise_progress = np.sum(surprise_data[0, 0:6])  # Sum states 1, 2, 3
+            surprise_trap = np.sum(surprise_data[0, 6:8])
+            surprise_stoch = np.sum(surprise_data[0, 11:61])  # Sum states 4, 5, 6
+            print(surprise_progress, surprise_trap, surprise_stoch)
 
-            novelty_progress = np.sum(novelty_data[0:6])
-            novelty_trap = np.sum(novelty_data[6:8])
-            novelty_stoch = np.sum(novelty_data[11:61])
+            novelty_progress = np.sum(novelty_data[0, 0:6])
+            novelty_trap = np.sum(novelty_data[0, 6:8])
+            novelty_stoch = np.sum(novelty_data[0, 11:61])
 
             # Stacked bar for surprise agent
             ax.bar(r1, surprise_progress, color=color_groups['progress'], width=bar_width, edgecolor='grey',
@@ -100,8 +103,8 @@ def plot_stacked_individual_segments(stoch, segments, average_surprise_counts, a
 
 
         # Add labels for agents
-        ax.text(r1[0], -0.01*int(segment), 'Surprise', ha='center', va='center', color='black')
-        ax.text(r2[0], -0.01*int(segment), 'Novelty', ha='center', va='center', color='black')
+        ax.text(r1[0], -0.03*int(segment), 'Surprise', ha='center', va='center', color='black')
+        ax.text(r2[0], -0.03*int(segment), 'Novelty', ha='center', va='center', color='black')
 
         # Set labels and title
         ax.set_ylabel('State Visits', fontweight='bold')
