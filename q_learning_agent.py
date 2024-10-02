@@ -80,6 +80,8 @@ class QLearningAgent:
                 "5000": None,
                 "10000": None}
 
+      self.step_count_dict_ratio = {str(i): None for i in range(100, 5100, 100)}
+
       while not terminated and self.step_count < max_steps:
         # state before action
         state = observation["envs"][1]
@@ -104,58 +106,12 @@ class QLearningAgent:
         self.alpha[state, action, next_state] += 1
         self.novelty_count[next_state] += 1
         #update different novelty counters
-        if self.step_count == 10:
-          self.step_count_dict["10"] = copy.deepcopy(self.novelty_count)
-          if self.pure_novelty:
-            print(f"novelty at 10: {novelty}")
-            print(f"novelty count at 10: {self.novelty_count}")
-            print(f"value at 10: {value}")
-        elif self.step_count == 20:
-          self.step_count_dict["20"] = copy.deepcopy(self.novelty_count)
-        elif self.step_count == 30:
-          self.step_count_dict["30"] = copy.deepcopy(self.novelty_count)
-          if self.pure_novelty:
-            print(f"novelty at 30: {novelty}")
-            print(f"novelty count at 30: {self.novelty_count}")
-            print(f"value at 30: {value}")
-        elif self.step_count == 40:
-          self.step_count_dict["40"] = copy.deepcopy(self.novelty_count)
-        elif self.step_count == 50:
-          self.step_count_dict["50"] = copy.deepcopy(self.novelty_count)
-          if self.pure_novelty:
-            print(f"novelty at 50: {novelty}")
-            print(f"novelty count at 50: {self.novelty_count}")
-            print(f"value at 50: {value}")
-        elif self.step_count == 100:
-          self.step_count_dict["100"] = copy.deepcopy(self.novelty_count)
-        elif self.step_count == 200:
-          self.step_count_dict["200"] = copy.deepcopy(self.novelty_count)
-          if self.pure_novelty:
-            print(f"novelty at 200: {novelty}")
-            print(f"novelty count at 200: {self.novelty_count}")
-            print(f"value at 200: {value}")
-        elif self.step_count == 500:
-          self.step_count_dict["500"] = copy.deepcopy(self.novelty_count)
-        elif self.step_count == 1000:
-          self.step_count_dict["1000"] = copy.deepcopy(self.novelty_count)
-          if self.pure_novelty:
-            print(f"novelty at 1000: {novelty}")
-            print(f"novelty count at 1000: {self.novelty_count}")
-            print(f"value at 1000: {value}")
-        elif self.step_count == 2000:
-          self.step_count_dict["2000"] = copy.deepcopy(self.novelty_count)
-        elif self.step_count == 5000:
-          self.step_count_dict["5000"] = copy.deepcopy(self.novelty_count)
-          if self.pure_novelty:
-            print(f"novelty at 5000: {novelty}")
-            print(f"novelty count at 5000: {self.novelty_count}")
-            print(f"value at 5000: {value}")
-        elif self.step_count == 10000:
-          self.step_count_dict["10000"] = copy.deepcopy(self.novelty_count)
-          if self.pure_novelty:
-            print(f"novelty at 10000: {novelty}")
-            print(f"novelty count at 10000: {self.novelty_count}")
-            print(f"value at 10000: {value}")
+        if str(self.step_count) in self.step_count_dict:
+          self.step_count_dict[str(self.step_count)] = copy.deepcopy(self.novelty_count)
+
+        if str(self.step_count) in self.step_count_dict_ratio:
+          self.step_count_dict_ratio[str(self.step_count)] = copy.deepcopy(self.novelty_count)
+
 
 
         # compute novelty and update novelty count

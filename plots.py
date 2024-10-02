@@ -1,12 +1,19 @@
 import os
+
+import numpy
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import time
+import matplotlib.cm as cm
+import matplotlib as mpl
+import ast
 
 
-def plot_stacked_individual_segments(average_surprise_counts, average_novelty_counts, average_random_counts, segments, stoch, output_dir):
+
+
+def plot_stacked_individual_segments(average_surprise_counts, average_novelty_counts, average_random_counts, segments, stoch, output_dir, n_runs):
     # Colors for each group
     if not stoch:
         color_groups = {
@@ -125,7 +132,7 @@ def plot_stacked_individual_segments(average_surprise_counts, average_novelty_co
         # Custom x-axis labels
         ax.set_xticks([r1[0], r2[0], r3[0]])  # Set the positions to match the actual bars
         ax.set_xticklabels(['Surprise', 'Novelty', 'Random'])  # Set labels for each agent
-        ax.set_xlabel('Agents')
+        ax.set_xlabel(f"Averaged over {n_runs} agents")
         # Show legend for the state groups
         handles, labels = ax.get_legend_handles_labels()
         ax.legend(handles[:3], labels[:3], title="State Groups")
@@ -135,6 +142,261 @@ def plot_stacked_individual_segments(average_surprise_counts, average_novelty_co
         plt.savefig(filename, format='png')
         print(f'Saved plot for segment {segment} as {filename}')
         plt.clf()
+
+
+def save_ratios_to_csv(overall_random_counts_ratio, overall_novelty_counts_ratio, overall_surprise_counts_ratio,
+                       segments_ratio, n_runs, filename='/Users/marvinmathony/Documents/RLandNNs/data/agent_ratios.csv'):
+    timestamp = time.strftime("%Y%m%d-%H%M%S")
+
+    # Append the timestamp to the filename
+    full_filename = f"{filename}_{timestamp}.csv"
+
+    # Create a dictionary where each key is a column in the CSV
+    data = {
+        'Segment': segments_ratio,
+        'Random_Agent': [overall_random_counts_ratio[segment] for segment in segments_ratio],
+        'Novelty_Agent': [overall_novelty_counts_ratio[segment] for segment in segments_ratio],
+        'Surprise_Agent': [overall_surprise_counts_ratio[segment] for segment in segments_ratio],
+        'Runs': [n_runs] * len(segments_ratio)  # Add n_runs information in a column
+    }
+
+    # Convert to a DataFrame and save to CSV
+    df = pd.DataFrame(data)
+    df.to_csv(full_filename, index=False)
+    print(f"Data saved to {full_filename}")
+    return full_filename
+
+
+def load_ratios_from_csv(filename):
+    # Read the CSV into a DataFrame
+    df = pd.read_csv(filename)
+
+    # Initialize the dictionaries
+    overall_random_counts_ratio = {}
+    overall_novelty_counts_ratio = {}
+    overall_surprise_counts_ratio = {}
+
+    # Populate the dictionaries
+    for _, row in df.iterrows():
+        segment = row['Segment']
+        overall_random_counts_ratio[segment] = numpy.fromstring(row['Random_Agent'], sep = ",")
+        overall_novelty_counts_ratio[segment] = numpy.fromstring(row['Novelty_Agent'], sep = ",")
+        overall_surprise_counts_ratio[segment] = numpy.fromstring(row['Surprise_Agent'], sep=",")
+
+    return list(df['Segment']), overall_random_counts_ratio, overall_novelty_counts_ratio, overall_surprise_counts_ratio
+
+def compute_ratios(step_count):
+    print(step_count)
+    trap_states = step_count[0, 6:8]
+    stochastic_states = step_count[0, 11:61]
+
+
+    total_visits = np.sum(step_count)
+    trap_visits = np.sum(trap_states)
+    stochastic_visits = np.sum(stochastic_states)
+
+    trap_ratio = trap_visits / total_visits
+    stochastic_ratio = stochastic_visits / total_visits
+    progressing_ratio = 1 - (trap_ratio + stochastic_ratio)
+    return trap_ratio, stochastic_ratio, progressing_ratio
+
+def plot_ratios(segments, overall_random_counts, overall_novelty_counts, overall_surprise_counts):
+    trap_ratio_random, stochastic_ratio_random, progressing_ratio_random = [], [], []
+    trap_ratio_surprise, stochastic_ratio_surprise, progressing_ratio_surprise = [], [], []
+    trap_ratio_novelty, stochastic_ratio_novelty, progressing_ratio_novelty = [], [], []
+
+    for segment in segments:
+        # Get state visits for each agent
+        state_visits_random = overall_random_counts[segment]
+        state_visits_surprise = overall_surprise_counts[segment]
+        state_visits_novelty = overall_novelty_counts[segment]
+
+        # Random agent ratios
+        print(f"type of state_visits_random: {type(state_visits_random)}")
+        trap, stochastic, progressing = compute_ratios(state_visits_random)
+        trap_ratio_random.append(trap)
+        stochastic_ratio_random.append(stochastic)
+        progressing_ratio_random.append(progressing)
+
+        # Surprise agent ratios
+        trap, stochastic, progressing = compute_ratios(state_visits_surprise)
+        trap_ratio_surprise.append(trap)
+        stochastic_ratio_surprise.append(stochastic)
+        progressing_ratio_surprise.append(progressing)
+
+        # Novelty agent ratios
+        trap, stochastic, progressing = compute_ratios(state_visits_novelty)
+        trap_ratio_novelty.append(trap)
+        stochastic_ratio_novelty.append(stochastic)
+        progressing_ratio_novelty.append(progressing)
+
+    # Convert segments to a numpy array for colormap scaling
+    segments_array = np.array(segments).astype(float)
+    norm = plt.Normalize(segments_array.min(), segments_array.max())
+    cmap = mpl.colormaps['viridis']  # You can change the colormap if you prefer
+
+    # Create the plot
+    plt.figure(figsize=(10, 8))
+
+    # Plot random agent (blue)
+    sc = plt.scatter(stochastic_ratio_random, trap_ratio_random, c=segments_array, cmap=cmap, label='Random', marker='o')
+    plt.plot(stochastic_ratio_random, trap_ratio_random, color='b', label='Random Line')
+
+    # Plot surprise agent (green)
+    plt.scatter(stochastic_ratio_surprise, trap_ratio_surprise, c=segments_array, cmap=cmap, label='Surprise', marker='s')
+    plt.plot(stochastic_ratio_surprise, trap_ratio_surprise, color='g', label='Surprise Line')
+
+    # Plot novelty agent (red)
+    plt.scatter(stochastic_ratio_novelty, trap_ratio_novelty, c=segments_array, cmap=cmap, label='Novelty', marker='^')
+    plt.plot(stochastic_ratio_novelty, trap_ratio_novelty, color='r', label='Novelty Line')
+
+    # Add colorbar to indicate steps
+    cbar = plt.colorbar(sc)
+    cbar.set_label('Steps (Segments)')
+
+    # Label the axes
+    plt.xlabel('Ratio of Stochastic States')
+    plt.ylabel('Ratio of Trap States')
+    plt.title('State Visit Ratios: Trap vs Stochastic')
+
+    # Add legend
+    plt.legend()
+
+    # Add grid for readability
+    plt.grid(True)
+
+    # Show the plot
+    plt.show()
+
+
+def plot_ratios_random(segments, overall_random_counts, overall_surprise_counts, overall_novelty_counts):
+    trap_ratio_random, stochastic_ratio_random, progressing_ratio_random = [], [], []
+    trap_ratio_surprise, stochastic_ratio_surprise, progressing_ratio_surprise = [], [], []
+    trap_ratio_novelty, stochastic_ratio_novelty, progressing_ratio_novelty = [], [], []
+
+    for segment in segments:
+        # Get state visits for each agent
+        state_visits_random = overall_random_counts[segment]
+        state_visits_surprise = overall_surprise_counts[segment]
+        state_visits_novelty = overall_novelty_counts[segment]
+
+        # Random agent ratios
+        print(f"type of state_visits_random: {type(state_visits_random)}")
+        trap, stochastic, progressing = compute_ratios(state_visits_random)
+        trap_ratio_random.append(trap)
+        stochastic_ratio_random.append(stochastic)
+        progressing_ratio_random.append(progressing)
+
+        # Surprise agent ratios
+        trap, stochastic, progressing = compute_ratios(state_visits_surprise)
+        trap_ratio_surprise.append(trap)
+        stochastic_ratio_surprise.append(stochastic)
+        progressing_ratio_surprise.append(progressing)
+
+        # Novelty agent ratios
+        trap, stochastic, progressing = compute_ratios(state_visits_novelty)
+        trap_ratio_novelty.append(trap)
+        stochastic_ratio_novelty.append(stochastic)
+        progressing_ratio_novelty.append(progressing)
+
+    # Convert segments to a numpy array for colormap scaling
+    segments_array = np.array(segments).astype(float)
+    norm = plt.Normalize(segments_array.min(), segments_array.max())
+    cmap = mpl.colormaps['viridis']  # You can change the colormap if you prefer
+
+    # Create the plot
+    plt.figure(figsize=(10, 8))
+
+    # Plot random agent (blue)
+    sc = plt.scatter(stochastic_ratio_random, trap_ratio_random, c=segments_array, cmap=cmap, label='Random', marker='o')
+    plt.plot(stochastic_ratio_random, trap_ratio_random, color='b', label='Random Line')
+
+    # Add colorbar to indicate steps
+    cbar = plt.colorbar(sc)
+    cbar.set_label('Steps (Segments)')
+
+    # Label the axes
+    plt.xlabel('Ratio of Stochastic States')
+    plt.ylabel('Ratio of Trap States')
+    plt.title('State Visit Ratios: Trap vs Stochastic')
+
+    # Add legend
+    plt.legend()
+
+    # Add grid for readability
+    plt.grid(True)
+
+    # Show the plot
+    plt.show()
+
+def plot_ratios_random_surprise(segments, overall_random_counts, overall_surprise_counts, overall_novelty_counts):
+    trap_ratio_random, stochastic_ratio_random, progressing_ratio_random = [], [], []
+    trap_ratio_surprise, stochastic_ratio_surprise, progressing_ratio_surprise = [], [], []
+    trap_ratio_novelty, stochastic_ratio_novelty, progressing_ratio_novelty = [], [], []
+
+    for segment in segments:
+        # Get state visits for each agent
+        state_visits_random = overall_random_counts[segment]
+        state_visits_surprise = overall_surprise_counts[segment]
+        state_visits_novelty = overall_novelty_counts[segment]
+
+        # Random agent ratios
+        print(f"type of state_visits_random: {type(state_visits_random)}")
+        trap, stochastic, progressing = compute_ratios(state_visits_random)
+        trap_ratio_random.append(trap)
+        stochastic_ratio_random.append(stochastic)
+        progressing_ratio_random.append(progressing)
+
+        # Surprise agent ratios
+        trap, stochastic, progressing = compute_ratios(state_visits_surprise)
+        trap_ratio_surprise.append(trap)
+        stochastic_ratio_surprise.append(stochastic)
+        progressing_ratio_surprise.append(progressing)
+
+        # Novelty agent ratios
+        trap, stochastic, progressing = compute_ratios(state_visits_novelty)
+        trap_ratio_novelty.append(trap)
+        stochastic_ratio_novelty.append(stochastic)
+        progressing_ratio_novelty.append(progressing)
+
+    # Convert segments to a numpy array for colormap scaling
+    segments_array = np.array(segments).astype(float)
+    norm = plt.Normalize(segments_array.min(), segments_array.max())
+    cmap = mpl.colormaps['viridis']  # You can change the colormap if you prefer
+
+    # Create the plot
+    plt.figure(figsize=(10, 8))
+
+    # Plot random agent (blue)
+    sc = plt.scatter(stochastic_ratio_random, trap_ratio_random, c=segments_array, cmap=cmap, label='Random', marker='o')
+    plt.plot(stochastic_ratio_random, trap_ratio_random, color='b', label='Random Line')
+
+    # Plot surprise agent (green)
+    plt.scatter(stochastic_ratio_surprise, trap_ratio_surprise, c=segments_array, cmap=cmap, label='Surprise', marker='s')
+    plt.plot(stochastic_ratio_surprise, trap_ratio_surprise, color='g', label='Surprise Line')
+
+
+
+    # Add colorbar to indicate steps
+    cbar = plt.colorbar(sc)
+    cbar.set_label('Steps (Segments)')
+
+    # Label the axes
+    plt.xlabel('Ratio of Stochastic States')
+    plt.ylabel('Ratio of Trap States')
+    plt.title('State Visit Ratios: Trap vs Stochastic')
+
+    # Add legend
+    plt.legend()
+
+    # Add grid for readability
+    plt.grid(True)
+
+    # Show the plot
+    plt.show()
+
+
+
 
 
 
