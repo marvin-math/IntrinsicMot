@@ -8,7 +8,7 @@ import envs.environment
 import matplotlib.pyplot as plt
 import seaborn as sns
 import os
-from plots import plot_stacked_individual_segments, plot_ratios, compute_ratios, save_ratios_to_csv, load_ratios_from_csv, plot_ratios_random, plot_ratios_random_surprise
+from plots import plot_stacked_individual_segments, plot_ratios, compute_ratios, save_ratios_to_csv, load_ratios_from_csv, plot_ratios_random, plot_ratios_random_surprise, plot_ratios_inset
 
 # Directory to save the plots
 output_dir = '/Users/marvinmathony/Documents/RLandNNs/plots'
@@ -130,15 +130,10 @@ for segment in segments_ratio:
     overall_surprise_counts_ratio[segment] = np.divide(overall_surprise_counts_ratio[segment], n_runs)
     overall_random_counts_ratio[segment] = np.divide(overall_random_counts_ratio[segment], n_runs)
 
-"""filename = save_ratios_to_csv(overall_random_counts_ratio, overall_novelty_counts_ratio, overall_surprise_counts_ratio, segments_ratio, n_runs)
-segments_ratio, overall_random_counts_ratio, overall_novelty_counts_ratio, overall_surprise_counts_ratio = load_ratios_from_csv(filename)
-print(segments_ratio)
-print(f"Overall Random Counts Ratio: {overall_random_counts_ratio}")"""
 
-# loop over three plots, successively adding each agent
-plot_ratios_random(segments_ratio, overall_random_counts_ratio, overall_novelty_counts_ratio, overall_surprise_counts_ratio)
-plot_ratios_random_surprise(segments_ratio, overall_random_counts_ratio, overall_novelty_counts_ratio, overall_surprise_counts_ratio)
-plot_ratios(segments_ratio, overall_random_counts_ratio, overall_novelty_counts_ratio, overall_surprise_counts_ratio)
+filename = save_ratios_to_csv(overall_random_counts_ratio, overall_novelty_counts_ratio, overall_surprise_counts_ratio, segments_ratio, n_runs)
+
+
 
 """    # Accumulate the state visit counts for each segment
 for i, segment in enumerate(segments):
