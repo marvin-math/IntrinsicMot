@@ -114,7 +114,7 @@ for algorithm in algorithms:
                 reward = reward[action]
                 agent.update(action, state = state, reward = reward)
 
-
+                # Append the results to the data list
                 if algorithm == "thompson":
                     data_thompson.append({
                         'Participant': participant,
