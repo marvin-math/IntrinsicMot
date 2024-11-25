@@ -3,6 +3,8 @@ import torch
 import torch.nn as nn
 from scipy.stats import norm
 from scipy import interpolate
+from scipy.special import softmax
+
 
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -35,7 +37,6 @@ class KalmanBandit:
         self.theta = 0.8
 
     def update(self, action, state, reward):
-        # TODO: implement Kalman filter exactly as they do in the paper
         for i in range(self.n_arms):
             if action == i:
                 self.kalman_gain[i][state] = self.post_variance[i] / (self.post_variance[i] +
@@ -53,14 +54,17 @@ class KalmanBandit:
 
 
 
+
+
     def ucb(self, state):
         self.V_t[state] = self.post_mean[0] - self.post_mean[1]  # Example difference in means
         sigma2_1 = np.sqrt(self.post_variance[0])
         sigma2_2 = np.sqrt(self.post_variance[1])
         self.P_a0_ucb[state] = norm.cdf((self.V_t[state] + self.gamma * (sigma2_1 - sigma2_2)) / self.theta)
+        #self.P_a0_ucb[state] = softmax((self.V_t[state] + self.gamma * (sigma2_1 - sigma2_2)) / self.theta)
+
         # sample action 0 with probability P_a0_ucb
         action = 0 if np.random.rand() < self.P_a0_ucb[state] else 1
-
 
         #self.ucb[0][state] = self.post_mean[0][state-1] + self.beta * (np.sqrt(self.post_variance[0] + self.innov_variance))
         #self.ucb[1][state] = self.post_mean[1][state-1] + self.beta * (np.sqrt(self.post_variance[1] + self.innov_variance))
@@ -83,13 +87,13 @@ class KalmanBandit:
 
         return action
 
-n_participants = 30
+n_participants = 220
 n_block_per_p = 20
 n_trials_per_block = 10
 reward_array = np.empty([2, n_trials_per_block * n_block_per_p * n_participants], dtype=float)
 data_ucb = []
 data_thompson = []
-algorithms = ["ucb", "thompson"]
+algorithms = ["thompson", "ucb"]
 
 for algorithm in algorithms:
     state = 0
